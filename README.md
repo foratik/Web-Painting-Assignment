@@ -1,70 +1,110 @@
-# Getting Started with Create React App
+# پروژه نرم‌افزار نقاشی
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+این پروژه یک نرم‌افزار ساده نقاشی است که با استفاده از کتابخانه React پیاده‌سازی شده. کاربران می‌توانند با انتخاب اشکال هندسی (مربع، دایره، مثلث) و کلیک روی بوم (canvas) یا کشیدن (drag & drop) آن‌ها، اشکال را روی بوم رسم کنند. همچنین امکان ذخیره‌سازی و بارگذاری طرح نیز فراهم شده است.
 
-## Available Scripts
+<p align="center">  
+    <img height="auto" width="720px" src ="Preview.jpg">
+</p>
 
-In the project directory, you can run:
+برای اجرای این پروژه کافی است ابتدا با استفاده از دستور `npm install`، وابستگی‌های مورد نیاز را نصب کنید و سپس آن را با استفاده از `npm run` اجرا کنید. این پروژه به صورت پیش‌فرض از آدرس زیر در دسترس خواهد بود:
 
-### `npm start`
+http://localhost:3000/
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+## منطق و عملکرد اجزای اصلی
+### حالت‌ها (States)
+```jsx
+const [shapes, setShapes] = useState([]);
+const [selectedShape, setSelectedShape] = useState(null);
+const [draggingShape, setDraggingShape] = useState(null);
+```
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+- حالت shapes: لیستی از اشکال رسم‌شده روی بوم
+- حالت selectedShape: شکلی که کاربر انتخاب کرده برای رسم
+- حالت draggingShape: شکلی که در حال کشیده شدن روی بوم است
 
-### `npm test`
+### کلیک روی بوم برای رسم
+```jsx
+const handleCanvasClick = (e) => {
+if (!selectedShape) return;
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+const canvasRect = canvasRef.current.getBoundingClientRect();
+const x = e.clientX - canvasRect.left;
+const y = e.clientY - canvasRect.top;
 
-### `npm run build`
+const newShape = {
+id: Date.now(),
+type: selectedShape,
+x,
+y,
+size: 50,
+};
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+setShapes([...shapes, newShape]);
+};
+```
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+در صورت انتخاب شکل، مختصات کلیک محاسبه شده و شیء جدیدی با آن مختصات به آرایه shapes اضافه می‌شود.
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+### کشیدن و رها کردن (Drag & Drop)
+در نوار کناری، اشکال قابل درگ هستند:
 
-### `npm run eject`
+```jsx
+onDragStart={(e) => handleDragStart(e, 'rectangle')}
+```
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+سپس روی بوم رها می‌شوند:
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+```jsx
+const handleDrop = (e) => {
+...
+const shapeType = e.dataTransfer.getData('shapeType');
+...
+setShapes([...shapes, newShape]);
+};
+```
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+از dataTransfer برای انتقال نوع شکل استفاده شده است. مختصات رهاسازی روی بوم محاسبه شده و شکل اضافه می‌شود.
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+### حذف شکل با دوبار کلیک
+```jsx
+const handleShapeDoubleClick = (id) => {
+setShapes(shapes.filter(shape => shape.id !== id));
+};
+```
 
-## Learn More
+با دوبار کلیک روی یک شکل، آن از آرایه حذف می‌شود.
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+### ذخیره طرح
+```jsx
+const handleExport = () => {
+const data = JSON.stringify(shapes);
+const blob = new Blob([data], { type: 'application/json' });
+...
+};
+```
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+داده‌ها به فرمت JSON ذخیره می‌شوند و با استفاده از Blob و لینک موقت دانلود، ذخیره می‌شوند.
 
-### Code Splitting
+### بارگذاری طرح
+```jsx
+const handleImport = (e) => {
+const file = e.target.files[0];
+...
+reader.onload = (event) => {
+const importedShapes = JSON.parse(event.target.result);
+setShapes(importedShapes);
+};
+};
+```
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+فایل .json انتخاب شده و محتویات آن به shapes بارگذاری می‌شود.
 
-### Analyzing the Bundle Size
+### شمارش اشکال
+```jsx
+const shapeCounts = shapes.reduce((counts, shape) => {
+counts[shape.type] = (counts[shape.type] || 0) + 1;
+return counts;
+}, {});
+```
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+تعداد هر نوع شکل به صورت پویا نمایش داده می‌شود.
